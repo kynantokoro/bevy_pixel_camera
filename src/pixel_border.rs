@@ -1,6 +1,6 @@
+use crate::PixelProjection;
+use bevy::log;
 use bevy::prelude::*;
-
-use crate::{PixelProjection, PixelSpriteQuad};
 
 /// Provides an opaque border around the desired resolution.
 pub struct PixelBorderPlugin {
@@ -8,9 +8,9 @@ pub struct PixelBorderPlugin {
 }
 
 impl Plugin for PixelBorderPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.insert_resource(BorderColor(self.color))
-            .add_startup_system(spawn_borders.system())
+            .add_startup_system(spawn_borders)
             .add_system_to_stage(CoreStage::PostUpdate, resize_borders.system());
     }
 }
@@ -20,6 +20,7 @@ impl Plugin for PixelBorderPlugin {
 struct BorderColor(Color);
 
 // Component
+#[derive(Component)]
 enum Border {
     Left,
     Right,
@@ -27,43 +28,50 @@ enum Border {
     Bottom,
 }
 
-fn spawn_borders(
-    mut commands: Commands,
-    color: Res<BorderColor>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    quad: Res<PixelSpriteQuad>,
-) {
-    let material = materials.add(color.0.into());
+fn spawn_borders(mut commands: Commands, color: Res<BorderColor>) {
+    let color = color.0;
     commands
         .spawn()
         .insert(Border::Left)
         .insert_bundle(SpriteBundle {
-            material: material.clone(),
-            mesh: quad.clone().into(),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(1.0, 1.0)),
+                color,
+                ..Default::default()
+            },
             ..Default::default()
         });
     commands
         .spawn()
         .insert(Border::Right)
         .insert_bundle(SpriteBundle {
-            material: material.clone(),
-            mesh: quad.clone().into(),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(1.0, 1.0)),
+                color,
+                ..Default::default()
+            },
             ..Default::default()
         });
     commands
         .spawn()
         .insert(Border::Top)
         .insert_bundle(SpriteBundle {
-            material: material.clone(),
-            mesh: quad.clone().into(),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(1.0, 1.0)),
+                color,
+                ..Default::default()
+            },
             ..Default::default()
         });
     commands
         .spawn()
         .insert(Border::Bottom)
         .insert_bundle(SpriteBundle {
-            material: material.clone(),
-            mesh: quad.clone().into(),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(1.0, 1.0)),
+                color,
+                ..Default::default()
+            },
             ..Default::default()
         });
 }
@@ -81,36 +89,37 @@ fn resize_borders(
         let height = projection.desired_height.map(|h| h as f32).unwrap_or(0.0);
         let left = transform.translation.x
             + if projection.centered {
-                -(width / 2.0).round()
+                -(width / 2.0).round() - (width / 2.).round()
             } else {
                 0.0
             };
-        let right = left + width;
+
+        let right = left + (width * 2.);
         let bottom = transform.translation.y
             + if projection.centered {
-                (-height / 2.0).round()
+                (-height / 2.0).round() - (height / 2.).round()
             } else {
                 0.0
             };
-        let top = bottom + height;
+        let top = bottom + (height * 2.);
 
         for (mut sprite, mut transform, border) in borders.iter_mut() {
             match border {
                 Border::Left => {
-                    *transform = Transform::from_xyz(left - width, bottom - height, z);
-                    sprite.size = Vec2::new(width, 3.0 * height);
+                    *transform = Transform::from_xyz(left, bottom + height, z);
+                    sprite.custom_size = Some(Vec2::new(width, 3.0 * height));
                 }
                 Border::Right => {
-                    *transform = Transform::from_xyz(right, bottom - height, z);
-                    sprite.size = Vec2::new(width, 3.0 * height);
+                    *transform = Transform::from_xyz(right, bottom + height, z);
+                    sprite.custom_size = Some(Vec2::new(width, 3.0 * height));
                 }
                 Border::Top => {
-                    *transform = Transform::from_xyz(left - width, top, z);
-                    sprite.size = Vec2::new(3.0 * width, height);
+                    *transform = Transform::from_xyz(left + width, top, z);
+                    sprite.custom_size = Some(Vec2::new(3.0 * width, height));
                 }
                 Border::Bottom => {
-                    *transform = Transform::from_xyz(left - width, bottom - height, z);
-                    sprite.size = Vec2::new(3.0 * width, height);
+                    *transform = Transform::from_xyz(left + width, bottom, z);
+                    sprite.custom_size = Some(Vec2::new(3.0 * width, height));
                 }
             }
         }
